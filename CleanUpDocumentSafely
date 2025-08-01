@@ -1,0 +1,198 @@
+Sub CleanUpDocumentSafely()
+    Dim doc As Document
+    Dim shp As Shape
+    Dim ilshp As InlineShape
+    Dim rng As Range
+    Dim extractedText As String
+    Dim para As Paragraph
+    Dim tbl As Table
+    Dim sec As Section
+    Dim cell As cell
+    Dim rowIndexDict As Object
+
+    Set doc = ActiveDocument
+    Set rowIndexDict = CreateObject("Scripting.Dictionary")
+
+    ' 1. Zamenit' vse tekstovye bloky (Textbox) na obychnyy tekst
+    Dim i As Long
+    For i = doc.Shapes.Count To 1 Step -1
+        Set shp = doc.Shapes(i)
+        If shp.Type = msoTextBox Then
+            If shp.TextFrame.HasText Then
+                extractedText = shp.TextFrame.TextRange.Text
+                Set rng = shp.Anchor.Duplicate
+                shp.Delete
+                rng.Text = extractedText
+            End If
+        End If
+    Next i
+
+    For i = doc.InlineShapes.Count To 1 Step -1
+        Set ilshp = doc.InlineShapes(i)
+        If ilshp.Type = wdInlineShapeTextBox Then
+            extractedText = ilshp.Range.Text
+            Set rng = ilshp.Range.Duplicate
+            ilshp.Delete
+            rng.Text = extractedText
+        End If
+    Next i
+
+    ' 2. Vybrat' ves' tekst i ochistit' formatirovanie, ustanovit' shrift
+    Dim rngDoc As Range
+    Set rngDoc = doc.Content
+    rngDoc.Font.Reset
+    rngDoc.Style = doc.Styles(wdStyleNormal)
+    rngDoc.Font.Name = "Calibri"
+    rngDoc.Font.Size = 12
+
+    ' 3. Ustanovit' poly dokumenta s proverkoy
+    For Each sec In doc.Sections
+        With sec.PageSetup
+            On Error Resume Next
+            .TextColumns.SetCount 1
+            .TopMargin = 56.69      ' 2 cm
+            .BottomMargin = 56.69   ' 2 cm
+            .LeftMargin = 85.05     ' 3 cm
+            .RightMargin = 42.52    ' 1.5 cm
+            On Error GoTo 0
+        End With
+    Next sec
+
+    ' 4. Format abzatcev
+    For Each para In doc.Paragraphs
+        With para.Format
+            .Alignment = wdAlignParagraphJustify
+            .LeftIndent = 0
+            .RightIndent = 0
+            .FirstLineIndent = CentimetersToPoints(1.27)
+            .SpaceBefore = 0
+            .SpaceAfter = 0
+            .LineSpacingRule = wdLineSpace1pt5
+        End With
+        para.OutlineLevel = wdOutlineLevelBodyText
+    Next para
+
+    ' 5. Udalit' vse ssylki (Ctrl+Shift+F9)
+    doc.Fields.Unlink
+
+    ' 6. Obychnaya razmetka (1 kolonka)
+    doc.PageSetup.TextColumns.SetCount 1
+
+    ' 7. Zameny (razryvy i dvoinye abzacy)
+    With doc.Content.Find
+        .ClearFormatting
+        .Replacement.ClearFormatting
+        .Wrap = wdFindContinue
+        .Forward = True
+        .Format = False
+        .MatchWildcards = False
+
+        .Text = "^b"
+        .Replacement.Text = "^p"
+        .Execute Replace:=wdReplaceAll
+
+        .Text = "^n"
+        .Replacement.Text = "^p"
+        .Execute Replace:=wdReplaceAll
+
+        .Text = "^m"
+        .Replacement.Text = "^p"
+        .Execute Replace:=wdReplaceAll
+    End With
+
+    ' 8. Ubrat' vse dvoinye abzacy (maksimum 10 prokhodov)
+    Dim loopCount As Integer
+    loopCount = 0
+    Do
+        With doc.Content.Find
+            .ClearFormatting
+            .Replacement.ClearFormatting
+            .Text = "^p^p"
+            .Replacement.Text = "^p"
+            .Wrap = wdFindContinue
+            .Execute Replace:=wdReplaceAll
+        End With
+        loopCount = loopCount + 1
+        DoEvents
+    Loop While loopCount < 10 And InStr(doc.Content.Text, vbCr & vbCr) > 0
+
+    ' 9. Format tablic
+    For Each tbl In doc.Tables
+        tbl.Borders.Enable = True
+        tbl.AutoFitBehavior wdAutoFitWindow
+        tbl.LeftPadding = CentimetersToPoints(0.2)
+        tbl.RightPadding = CentimetersToPoints(0.2)
+    
+        ' Format ya÷åek
+        For Each cell In tbl.Range.Cells
+            With cell
+                .VerticalAlignment = wdCellAlignVerticalTop
+                With .Range.ParagraphFormat
+                    .Alignment = wdAlignParagraphLeft
+                    .LeftIndent = 0
+                    .RightIndent = 0
+                    .FirstLineIndent = 0
+                End With
+            End With
+        Next cell
+    
+        ' Ustanovit' vysotu stroki dlya vsekh yacheek tablicy
+        With tbl.Range
+            .Cells.SetHeight RowHeight:=CentimetersToPoints(0.04), HeightRule:=wdRowHeightAtLeast
+        End With
+    Next tbl
+
+    ' 10. Zamenit' vse znaki tabulyacii na probely
+    With doc.Content.Find
+        .ClearFormatting
+        .Replacement.ClearFormatting
+        .Text = "^t"
+        .Replacement.Text = " "
+        .Wrap = wdFindContinue
+        .Execute Replace:=wdReplaceAll
+    End With
+
+    ' 11. Ubrat' lishnie probely bez wildcards
+    With doc.Content.Find
+        .ClearFormatting
+        .Replacement.ClearFormatting
+        .Wrap = wdFindContinue
+        .MatchWildcards = False
+
+        ' 1. Zamena tabulyacii na probel
+        .Text = "^t"
+        .Replacement.Text = " "
+        .Execute Replace:=wdReplaceAll
+
+        ' 2. Udalenie povtornykh probelov (do 10 prohodov)
+        Dim j As Integer
+        For j = 1 To 10
+            .Text = "  "
+            .Replacement.Text = " "
+            .Execute Replace:=wdReplaceAll
+        Next j
+
+        ' 3. Probely v nachale abzatcev
+        .Text = "^p "
+        .Replacement.Text = "^p"
+        .Execute Replace:=wdReplaceAll
+
+        ' 4. Probely v kontse abzatcev
+        .Text = " ^p"
+        .Replacement.Text = "^p"
+        .Execute Replace:=wdReplaceAll
+
+        ' 5. Probely pered znakom prepinaniya
+        Dim punct() As String
+        punct = Split(". , : ; ! ?", " ")
+        Dim p As Variant
+        For Each p In punct
+            .Text = " " & p
+            .Replacement.Text = p
+            .Execute Replace:=wdReplaceAll
+        Next p
+    End With
+
+    ' 12. Soobshchenie ob uspeshnom zavershenii
+    MsgBox "Dokument uspeshno ochishchen i otformatirovan.", vbInformation
+End Sub
