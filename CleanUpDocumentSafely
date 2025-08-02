@@ -123,7 +123,7 @@ Sub CleanUpDocumentSafely()
         tbl.LeftPadding = CentimetersToPoints(0.2)
         tbl.RightPadding = CentimetersToPoints(0.2)
     
-        ' Format ya÷åek
+        ' Format ya??ek
         For Each cell In tbl.Range.Cells
             With cell
                 .VerticalAlignment = wdCellAlignVerticalTop
@@ -193,6 +193,26 @@ Sub CleanUpDocumentSafely()
         Next p
     End With
 
-    ' 12. Soobshchenie ob uspeshnom zavershenii
+    ' 12. Vydelet' slova "ПОПЕРЕДЖЕННЯ!" i "ВАЖЛИВО!" zhirnym
+    Dim keywords As Variant
+    Dim word As Variant
+    keywords = Array("ПОПЕРЕДЖЕННЯ!", "ВАЖЛИВО!")
+
+    For Each word In keywords
+        With doc.Content.Find
+            .ClearFormatting
+            .Replacement.ClearFormatting
+            .Text = word
+            .Replacement.Text = word
+            .Replacement.Font.Bold = True
+            .Forward = True
+            .Wrap = wdFindContinue
+            .Format = True
+            .MatchCase = True
+            .Execute Replace:=wdReplaceAll
+        End With
+    Next word
+
+    ' 13. Soobshchenie ob uspeshnom zavershenii
     MsgBox "Dokument uspeshno ochishchen i otformatirovan.", vbInformation
 End Sub
