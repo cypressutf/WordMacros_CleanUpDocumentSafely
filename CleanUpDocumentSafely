@@ -196,7 +196,7 @@ Sub CleanUpDocumentSafely()
     ' 12. Vydelet' slova "ПОПЕРЕДЖЕННЯ!" i "ВАЖЛИВО!" zhirnym
     Dim keywords As Variant
     Dim word As Variant
-    keywords = Array("ПОПЕРЕДЖЕННЯ!", "ВАЖЛИВО!")
+    keywords = Array("ПОПЕРЕДЖЕННЯ!", "ВАЖЛИВО!", "Примітка:")
 
     For Each word In keywords
         With doc.Content.Find
