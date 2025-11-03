@@ -128,6 +128,26 @@ Sub CleanUpDocumentSafely()
         tbl.LeftPadding = CentimetersToPoints(0.2)
         tbl.RightPadding = CentimetersToPoints(0.2)
     
+        ' Попытка применить стиль "Сетка таблицы" (рус.) или "Table Grid" (eng.) — безопасно с обработкой ошибок
+        On Error Resume Next
+        Err.Clear
+        tbl.Style = "Сетка таблицы"
+        If Err.Number <> 0 Then
+            Err.Clear
+            tbl.Style = "Table Grid"
+        End If
+        On Error GoTo 0
+
+        ' Установим флаги применения элементов стиля (по необходимости можно поменять значение)
+        On Error Resume Next
+        tbl.ApplyStyleHeadingRows = False
+        tbl.ApplyStyleLastRow = False
+        tbl.ApplyStyleFirstColumn = False
+        tbl.ApplyStyleLastColumn = False
+        tbl.ApplyStyleRowBands = False
+        tbl.ApplyStyleColumnBands = False
+        On Error GoTo 0
+
         ' Format yaчеек
         For Each cell In tbl.Range.Cells
             With cell
