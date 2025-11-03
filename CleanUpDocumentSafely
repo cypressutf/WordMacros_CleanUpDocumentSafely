@@ -7,7 +7,7 @@ Sub CleanUpDocumentSafely()
     Dim para As Paragraph
     Dim tbl As Table
     Dim sec As Section
-    Dim cell As cell
+    Dim cell As Cell
     Dim rowIndexDict As Object
 
     Set doc = ActiveDocument
@@ -98,6 +98,11 @@ Sub CleanUpDocumentSafely()
         .Text = "^m"
         .Replacement.Text = "^p"
         .Execute Replace:=wdReplaceAll
+
+        ' --- Добавлено: заменить разрывы строки (Shift+Enter, символ ↵) на абзацы ---
+        .Text = "^l"      ' маленькая буква L — manual line break
+        .Replacement.Text = "^p"
+        .Execute Replace:=wdReplaceAll
     End With
 
     ' 8. Ubrat' vse dvoinye abzacy (maksimum 10 prokhodov)
@@ -123,7 +128,7 @@ Sub CleanUpDocumentSafely()
         tbl.LeftPadding = CentimetersToPoints(0.2)
         tbl.RightPadding = CentimetersToPoints(0.2)
     
-        ' Format ya??ek
+        ' Format yaчеек
         For Each cell In tbl.Range.Cells
             With cell
                 .VerticalAlignment = wdCellAlignVerticalTop
